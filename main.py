@@ -13,6 +13,11 @@ from bertopic.representation import KeyBERTInspired, OpenAI, MaximalMarginalRele
 import api_key
 import openai
 
+def pretty_print(dict_in, names):
+    for key in sorted(dict_in.keys()):
+        print(f"{key}, { names[key] }: {dict_in[key]}")
+        #print(f"{key}: {dict_in[key]}")
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
@@ -60,13 +65,19 @@ rep_models = [key_model, mmr_model]
 custom_hdbscan = HDBSCAN(min_cluster_size=5, min_samples=2, prediction_data=True)
 
 for name, product in filtered_products.items():
-    #print(name + " being processed")
+    print("\n  --------------------- \n")
+    print(name + " being processed")
     summaries = product['Summary'].tolist()
+    sentiments = product['Sentiment'].tolist()
     topic_model = BERTopic(language="english", hdbscan_model=custom_hdbscan, representation_model=rep_models)
 
     topics, _ = topic_model.fit_transform(summaries)
     topic_model.reduce_topics(summaries, nr_topics="auto")
     topics, _ = topic_model.transform(summaries)
+
+    num_of_pos = sentiments.count("positive")
+    num_of_neg = sentiments.count("negative")
+    ratings_normalized = [int(x) - 3 for x in product['Rate'].tolist()]
 
     product['Topic'] = topics
     product_topics[name] = {
@@ -74,14 +85,24 @@ for name, product in filtered_products.items():
         "model": topic_model
     }
 
-    #for summary, topic, sentiment in zip(summaries, topics, product['Sentiment'].tolist()):
-        #print(f"Summary: {summary[:60]}... → Topic: {topic} → Sentiment: {sentiment}")
+    topic_scores = {}
+    for topic in topics:
+        topic_scores[topic] = 0
 
-    print(f"{name} done, {len(summaries)} summaries")
-    print(topic_model.topic_labels_)
+    for summary, topic, sentiment, rating in zip(summaries, topics, sentiments, ratings_normalized):
+        #print(f"Summary: {summary[:60]}... → Topic: {topic} → Sentiment: {sentiment}")
+        num = num_of_neg if sentiment == "negative" else num_of_pos
+        topic_scores[topic] += rating / num
+
+    topic_info = topic_model.get_topic_info()
+    topic_names = topic_info.set_index("Topic")["Name"].to_dict()
+
+    #print(f"{name} done, {len(summaries)} summaries")
+    #print(topic_model.get_topic_info())
+    pretty_print(topic_scores, topic_names)
 
     # Save intermediate results
-    dump(product_topics, f)
+    #dump(product_topics, f)
 
     # Clear memory
     del topic_model
