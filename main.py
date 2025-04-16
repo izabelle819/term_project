@@ -15,8 +15,7 @@ import openai
 
 def pretty_print(dict_in, names):
     for key in sorted(dict_in.keys()):
-        print(f"{key}, { names[key] }: {dict_in[key]}")
-        #print(f"{key}: {dict_in[key]}")
+        print(f"{key}, {names[key]}: {dict_in[key]}")
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -50,6 +49,7 @@ for name, curr_product in product_dict.items():
 print("filtered data len: " + str(len(filtered_products.keys())))
 
 f = open("product_topics.pkl", "wb")
+dump(len(filtered_products.keys()), f)
 product_topics = {}
 i = 0
 
@@ -97,14 +97,15 @@ for name, product in filtered_products.items():
     topic_info = topic_model.get_topic_info()
     topic_names = topic_info.set_index("Topic")["Name"].to_dict()
 
-    #print(f"{name} done, {len(summaries)} summaries")
-    #print(topic_model.get_topic_info())
     pretty_print(topic_scores, topic_names)
 
     # Save intermediate results
-    #dump(product_topics, f)
+    data = {"product data": product, "topic info": topic_info, "topic names": topic_names, "topic scores": topic_scores}
+    dump(data, f)
 
     # Clear memory
     del topic_model
     gc.collect()
+
+f.close()
 
