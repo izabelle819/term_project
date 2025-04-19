@@ -1,10 +1,5 @@
 from bertopic import BERTopic
-
-print("importing - past bert")
-
 import pandas as pd
-import numpy as np
-import re
 from hdbscan import HDBSCAN
 from pickle import dump, load
 import gc
@@ -13,6 +8,9 @@ from bertopic.representation import KeyBERTInspired, OpenAI, MaximalMarginalRele
 import api_key
 import openai
 
+client = openai.OpenAI(api_key=api_key.key_)
+ai_model = OpenAI(client, model="gpt-4o-mini", chat=True)
+
 def pretty_print(dict_in, names):
     for key in sorted(dict_in.keys()):
         print(f"{key}, {names[key]}: {dict_in[key]}")
@@ -20,12 +18,8 @@ def pretty_print(dict_in, names):
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
-print("all libraries imported")
-
 data = pd.read_csv("responses.csv")
 df = pd.DataFrame(data)
-
-print("data in")
 
 filtered_products = {"ECE49494: NLP": data}
 
@@ -73,7 +67,6 @@ for name, product in filtered_products.items():
         topic_scores[topic] = 0
 
     for summary, topic, sentiment, rating in zip(summaries, topics, sentiments, ratings_normalized):
-        #print(f"Summary: {summary[:60]}... → Topic: {topic} → Sentiment: {sentiment}")
         num = num_of_neg if sentiment == "negative" else num_of_pos
         topic_scores[topic] += rating / num
 
@@ -82,13 +75,26 @@ for name, product in filtered_products.items():
 
     pretty_print(topic_scores, topic_names)
 
-    # Save intermediate results
+    for topic_id in sorted(product['Topic'].unique()):
+        topic_reviews = product[product['Topic'] == topic_id]['Review'].dropna().tolist()
+        if len(topic_reviews) == 0:
+            continue
+        joined_reviews = "\n".join(topic_reviews[:10])
+        prompt = f"Summarize the key points, feedback, or issues raised in the following student course reviews:\n{joined_reviews}\n\n Summary:"
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an expert in summarizing student feedback on university courses."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            summary = response.choices[0].message.content.strip()
+            print(f"\n - Topic {topic_id} ({topic_names.get(topic_id, 'Unknown')}):\n{summary}\n")
+        except Exception as e:
+            print(f"Failed to generate summary for topic {topic_id}: {e}")
     data = {"product data": product, "topic info": topic_info, "topic names": topic_names, "topic scores": topic_scores}
     dump(data, f)
-
-    # Clear memory
     del topic_model
     gc.collect()
-
 f.close()
-
