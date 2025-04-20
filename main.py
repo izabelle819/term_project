@@ -97,6 +97,8 @@ for name, product in filtered_products.items():
     topic_info = topic_model.get_topic_info()
     topic_names = topic_info.set_index("Topic")["Name"].to_dict()
 
+    print(topic_info)
+
     pretty_print(topic_scores, topic_names)
 
     # Save intermediate results

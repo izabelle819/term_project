@@ -11,7 +11,7 @@ sys = """You are an expert product review summarizer. The data you get in is the
         a list of identified topics, and associated sentiment scores, calculated algorithmically based on a normalized rating system 
         given the density of positive/negative reviews. You are responsible for outputting nothing but a summarizaiton of this data 
         in text form. This should be a short paragraph clearly outlining positives and negatives. Group related topics together 
-        where possible."""
+        where possible. Write as if the reader will have no insight into the given data, i.e. dont mention the sentiment scores"""
 
 data_list = []
 products = []
@@ -58,5 +58,5 @@ for p, names, score in zip(products, topic_names, topic_scores):
     descriptions.append({"product": product_name, "summary": summary})
     print(f"\nSummary for {product_name[:30]}...\n{summary}\n")
 
-with open("gpt_descriptions.pkl", "wb") as f:
-    dump(descriptions, f)
+'''with open("gpt_descriptions.pkl", "wb") as f:
+    dump(descriptions, f)'''
